@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Media Editor Pro</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <style>
+    #datetime {
+      position: fixed;
+      top: 10px;
+      right: 15px;
+      background: white;
+      padding: 8px 14px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      font-size: 14px;
+      font-weight: bold;
+      z-index: 999;
+    }
+    canvas,
+    video {
+      width: 100%;
+      margin-top: 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .highlight-back {
+      font-weight: bold;
+      background-color: #f8f9fa;
+      border: 2px solid #0d6efd;
+      color: #0d6efd;
+    }
+    .highlight-back:hover {
+      background-color: #0d6efd;
+      color: white;
+    }
+    body {
+      background: linear-gradient(to right, #fdfbfb, #ebedee);
+    }
+    textarea {
+      resize: vertical;
+      min-height: 200px;
+    }
+  </style>
+</head>
+<body>
+  <div id="datetime"></div>
+
+  <div
+    id="welcome"
+    class="vh-100 d-flex flex-column justify-content-center align-items-center text-white text-center"
+    style="background: linear-gradient(135deg, #667eea, #764ba2)"
+  >
+    <h1 class="display-3 mb-4">Welcome to Media Editor Pro</h1>
+    <div class="d-flex gap-3 flex-wrap justify-content-center">
+      <button class="btn btn-light btn-lg" onclick="openEditor('photo')">
+        Photo Editor
+      </button>
+      <button class="btn btn-light btn-lg" onclick="openEditor('video')">
+        Video Editor
+      </button>
+      <button class="btn btn-light btn-lg" onclick="openEditor('text')">
+        Text Editor
+      </button>
+    </div>
+  </div>
+
+  <!-- Photo Editor -->
+  <div id="photoEditor" class="container py-5 d-none">
+    <button class="btn highlight-back mb-3" onclick="goBack()">
+      ⬅ Back to Home
+    </button>
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="mb-4">📸 Photo Editor</h2>
+      <input
+        type="file"
+        id="photoUpload"
+        class="form-control mb-3"
+        accept="image/*"
+      />
+      <canvas id="photoCanvas" class="mb-3"></canvas>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-primary" onclick="removeBackground()">
+          Remove Background
+        </button>
+        <button class="btn btn-success" onclick="downloadPhoto()">Download Photo</button>
+        <button class="btn btn-warning" onclick="savePhotoProgress()">Save Progress</button>
+        <button class="btn btn-info" onclick="loadPhotoProgress()">Load Saved Progress</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Video Editor -->
+  <div id="videoEditor" class="container py-5 d-none">
+    <button class="btn highlight-back mb-3" onclick="goBack()">
+      ⬅ Back to Home
+    </button>
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="mb-4">🎬 Video Editor</h2>
+      <input
+        type="file"
+        id="videoUpload"
+        class="form-control mb-3"
+        accept="video/*"
+      />
+      <video id="videoPlayer" class="mb-3" controls></video>
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <button class="btn btn-outline-primary" onclick="skipTime(-10)">
+          ⏪ Skip -10s
+        </button>
+        <button class="btn btn-outline-primary" onclick="skipTime(10)">
+          ⏩ Skip +10s
+        </button>
+        <button class="btn btn-outline-dark" onclick="changeSpeed(0.5)">
+          0.5x
+        </button>
+        <button class="btn btn-outline-dark" onclick="changeSpeed(1)">
+          1x
+        </button>
+        <button class="btn btn-outline-dark" onclick="changeSpeed(2)">
+          2x
+        </button>
+        <button class="btn btn-outline-dark" onclick="changeSpeed(4)">
+          Time-lapse 4x
+        </button>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-success" onclick="downloadVideo()">Download Video</button>
+        <button class="btn btn-warning" onclick="saveVideoProgress()">Save Progress</button>
+        <button class="btn btn-info" onclick="loadVideoProgress()">Load Saved Progress</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Text Editor -->
+  <div id="textEditor" class="container py-5 d-none">
+    <button class="btn highlight-back mb-3" onclick="goBack()">
+      ⬅ Back to Home
+    </button>
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="mb-4">✍️ Text Rewriting & Spell Check</h2>
+      <textarea
+        id="textInput"
+        class="form-control mb-3"
+        placeholder="Paste or write your text here..."
+      ></textarea>
+      <div class="d-flex flex-wrap gap-2 mb-3">
+        <button class="btn btn-primary" onclick="rewriteText()">Rewrite Text</button>
+        <button class="btn btn-warning" onclick="checkSpelling()">Check Spelling</button>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-success" onclick="downloadText()">Download Text</button>
+        <button class="btn btn-info" onclick="saveTextProgress()">Save Progress</button>
+        <button class="btn btn-secondary" onclick="loadTextProgress()">Load Saved Progress</button>
+      </div>
+      <div id="spellErrors" class="mt-3 text-danger"></div>
+    </div>
+  </div>
+
+  <script>
+    const photoEditor = document.getElementById('photoEditor');
+    const videoEditor = document.getElementById('videoEditor');
+    const textEditor = document.getElementById('textEditor');
+    const welcome = document.getElementById('welcome');
+
+    function openEditor(type) {
+      welcome.classList.add('d-none');
+      photoEditor.classList.add('d-none');
+      videoEditor.classList.add('d-none');
+      textEditor.classList.add('d-none');
+      if (type === 'photo') {
+        photoEditor.classList.remove('d-none');
+      } else if (type === 'video') {
+        videoEditor.classList.remove('d-none');
+      } else if (type === 'text') {
+        textEditor.classList.remove('d-none');
+      }
+    }
+
+    function goBack() {
+      welcome.classList.remove('d-none');
+      photoEditor.classList.add('d-none');
+      videoEditor.classList.add('d-none');
+      textEditor.classList.add('d-none');
+    }
+
+    function updateTime() {
+      const now = new Date();
+      document.getElementById('datetime').textContent =
+        now.toLocaleDateString() + ' ' + now.toLocaleTimeString();
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    // Photo Editor
+    const photoInput = document.getElementById('photoUpload');
+    const photoCanvas = document.getElementById('photoCanvas');
+    const ctx = photoCanvas.getContext('2d');
+
+    photoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          photoCanvas.width = img.width;
+          photoCanvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function removeBackground() {
+      ctx.clearRect(0, 0, photoCanvas.width, photoCanvas.height);
+      alert('Background removal is a simulated placeholder.');
+    }
+
+    function downloadPhoto() {
+      const link = document.createElement('a');
+      link.download = 'edited-photo.png';
+      link.href = photoCanvas.toDataURL();
+      link.click();
+    }
+
+    function savePhotoProgress() {
+      localStorage.setItem('photoCanvas', photoCanvas.toDataURL());
+      alert('Photo progress saved.');
+    }
+
+    function loadPhotoProgress() {
+      const dataUrl = localStorage.getItem('photoCanvas');
+      if (dataUrl) {
+        const img = new Image();
+        img.onload = () => {
+          photoCanvas.width = img.width;
+          photoCanvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = dataUrl;
+      }
+    }
+
+    // Video Editor
+    const videoPlayer = document.getElementById('videoPlayer');
+    document.getElementById('videoUpload').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const url = URL.createObjectURL(file);
+      videoPlayer.src = url;
+      localStorage.setItem('videoURL', url);
+    });
+
+    function skipTime(seconds) {
+      videoPlayer.currentTime += seconds;
+    }
+
+    function changeSpeed(speed) {
+      videoPlayer.playbackRate = speed;
+    }
+
+    function downloadVideo() {
+      alert(
+        'Downloading the original video file. Editing export needs server-side or ffmpeg.js'
+      );
+      const link = document.createElement('a');
+      link.href = videoPlayer.src;
+      link.download = 'video.mp4';
+      link.click();
+    }
+
+    function saveVideoProgress() {
+      localStorage.setItem('videoTime', videoPlayer.currentTime);
+      localStorage.setItem('videoSpeed', videoPlayer.playbackRate);
+      alert('Video progress saved.');
+    }
+
+    function loadVideoProgress() {
+      const time = localStorage.getItem('videoTime');
+      const speed = localStorage.getItem('videoSpeed');
+      if (time) videoPlayer.currentTime = parseFloat(time);
+      if (speed) videoPlayer.playbackRate = parseFloat(speed);
+    }
+
+    // Text Editor
+    const textInput = document.getElementById('textInput');
+    const spellErrors = document.getElementById('spellErrors');
+
+    // Simple synonym replacement for demo rewrite
+    function rewriteText() {
+      let text = textInput.value;
+      if (!text.trim()) {
+        alert('Please enter some text to rewrite.');
+        return;
+      }
+      // Very simple synonym swap example
+      const synonyms = {
+        quick: 'fast',
+        happy: 'joyful',
+        sad: 'unhappy',
+        smart: 'intelligent',
+        easy: 'simple',
+      };
+      const words = text.split(/\b/);
+      for (let i = 0; i < words.length; i++) {
+        const w = words[i].toLowerCase();
+        if (synonyms[w]) {
+          words[i] = synonyms[w];
+        }
+      }
+      textInput.value = words.join('');
+      alert('Text rewritten (demo).');
+    }
+
+    // Simple spell check: mark words not in a small dictionary
+    function checkSpelling() {
+      const dictionary = [
+        'the',
+        'and',
+        'is',
+        'in',
+        'it',
+        'you',
+        'that',
+        'he',
+        'was',
+        'for',
+        'on',
+        'are',
+        'with',
+        'as',
+        'I',
+        'his',
+        'they',
+        'be',
+        'at',
+        'one',
+        'have',
+        'this',
+        'from',
+        'or',
+        'had',
+        'by',
+        'not',
+        'word',
+        'but',
+        'what',
+        'some',
+        'we',
+        'can',
+        'out',
+        'other',
+        'were',
+        'all',
+        'there',
+        'when',
+        'up',
+        'use',
+        'your',
+        'how',
+        'said',
+        'an',
+        'each',
+        'she',
+        'which',
+        'do',
+        'their',
+        'if',
+        'will',
+        'way',
+        'about',
+        'many',
+        'then',
+        'them',
+        'write',
+        'would',
+        'like',
+        'so',
+        'these',
+        'her',
+        'long',
+        'make',
+        'thing',
+        'see',
+        'him',
+        'two',
+        'has',
+        'look',
+        'more',
+        'day',
+        'could',
+        'go',
+        'come',
+        'did',
+        'number',
+        'sound',
+        'no',
+        'most',
+        'people',
+        'my',
+        'over',
+        'know',
+        'water',
+        'than',
+        'call',
+        'first',
+        'who',
+        'may',
+        'down',
+        'side',
+        'been',
+        'now',
+        'find',
+      ];
+
+      let text = textInput.value.toLowerCase();
+      let words = text.match(/\b[a-z]+\b/g) || [];
+      let misspelled = [];
+
+      words.forEach((word) => {
+        if (!dictionary.includes(word)) {
+          misspelled.push(word);
+        }
+      });
+
+      if (misspelled.length === 0) {
+        spellErrors.textContent = 'No spelling mistakes found.';
+      } else {
+        spellErrors.textContent =
+          'Possible misspelled words: ' + [...new Set(misspelled)].join(', ');
+      }
+    }
+
+    function downloadText() {
+      const text = textInput.value;
+      if (!text.trim()) {
+        alert('Nothing to download!');
+        return;
+      }
+      const blob = new Blob([text], { type: 'text/plain' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'edited-text.txt';
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function saveTextProgress() {
+      localStorage.setItem('textEditorContent', textInput.value);
+      alert('Text progress saved.');
+    }
+
+    function loadTextProgress() {
+      const saved = localStorage.getItem('textEditorContent');
+      if (saved) {
+        textInput.value = saved;
+        spellErrors.textContent = '';
+      }
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
